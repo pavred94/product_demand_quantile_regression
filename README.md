@@ -126,5 +126,5 @@ For a single month at the t+2 horizon, all required features come from real obse
 - **`chain=False` (history-only):** Lag features always come from real observations, so there is no error accumulation and each month's forecast is independent and reproducible. However, products whose lag window extends past the observed data are dropped, and months with no forecastable products are skipped with a warning. Best for short horizons and reproducibility.
 - **`chain=True` (recursive):** Each month's P50 prediction is fed back as observed demand for subsequent months' features, so every product can be forecast at any horizon. The tradeoff is that prediction errors compound as the horizon grows, and rolling features increasingly reflect predicted rather than real demand. Best when long-horizon coverage matters more than precision.
 
-![Demand Forecast Plot)](plots/demand_forecast_plot_with_inference.png)
+![Demand Forecast Plot](plots/demand_forecast_plot_with_inference.png)
 *Validation predictions followed by a deployment forecast (green) at t+2 beyond the last observed month. The green point shows P50 with the 80% prediction interval as error bars.*
