@@ -5,6 +5,7 @@
 1. [Overview](#overview)
 2. [Pre-processing](#pre-processing)
 3. [Modeling](#modeling)
+4. [Generating Forecasts](#generating-forecasts)
 
 ## Overview
 
@@ -103,3 +104,27 @@ The ratio and momentum features are explicitly constructed because tree models c
 
 All features are shifted by at least 2 months to ensure they are available at forecast time (t+2 horizon).
 
+## Generating Forecasts
+
+Once trained, the three quantile models are deployed through a single function that produces P10/P50/P90 forecasts and the associated 80% prediction interval for future months:
+
+```python
+forecasts = generate_forecasts(
+    n_months=1,                      # Number of consecutive months to forecast
+    forecast_from="2016-12",         # The "current" month. First forecast targets t+2 months
+    history_df=monthly_df,           # Historical demand to build lag/rolling features from
+    chain=False                      # Whether to feed predictions back as inputs (see below)
+)
+```
+
+The function builds the lag, rolling, ratio, and momentum features from `history_df`, applies the fitted encoder, predicts the arcsinh-differenced target with each quantile model, and reconstructs demand via `sinh(arcsinh(lag_2) + predicted_diff)`. It returns a DataFrame with columns `[Product_Code, Warehouse, Forecast_Date, P10, P50, P90, Uncertainty]`, where `Uncertainty = P90 - P10` is the width of the 80% prediction interval. For each product-warehouse, P50 is the expected demand and the P10-P90 range is the planning interval.
+
+### Single-step vs. Multi-step Forecasting
+
+For a single month at the t+2 horizon, all required features come from real observed data. For horizons beyond t+2, the `chain` parameter controls how missing inputs are handled:
+
+- **`chain=False` (history-only):** Lag features always come from real observations, so there is no error accumulation and each month's forecast is independent and reproducible. However, products whose lag window extends past the observed data are dropped, and months with no forecastable products are skipped with a warning. Best for short horizons and reproducibility.
+- **`chain=True` (recursive):** Each month's P50 prediction is fed back as observed demand for subsequent months' features, so every product can be forecast at any horizon. The tradeoff is that prediction errors compound as the horizon grows, and rolling features increasingly reflect predicted rather than real demand. Best when long-horizon coverage matters more than precision.
+
+![Demand Forecast Plot)](plots/demand_forecast_plot_with_inference.png)
+*Validation predictions followed by a deployment forecast (green) at t+2 beyond the last observed month. The green point shows P50 with the 80% prediction interval as error bars.*
